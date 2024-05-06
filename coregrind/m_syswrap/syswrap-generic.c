@@ -553,6 +553,9 @@ static OpenFd *allocated_fds = NULL;
 /* Count of open file descriptors. */
 static Int fd_count = 0;
 
+/* For each std fd, True if open, False if closed */
+static Bool std_fds[3] = {True, True, True};
+
 /* Close_range caller might want to close very wide range of file descriptors,
    up to 0U.  We want to avoid iterating through such a range in a normall
    close_range, just up to any open file descriptor.  Also, unlike
@@ -601,6 +604,9 @@ struct NotClosedExtra {
 void ML_(record_fd_close)(ThreadId tid, Int fd)
 {
    OpenFd *i = allocated_fds;
+
+   if (fd < 3)
+      std_fds[fd] = False;
 
    if (fd >= VG_(fd_hard_limit))
       return;			/* Valgrind internal */
@@ -926,30 +932,30 @@ HChar *getsockdetails(Int fd, UInt len, HChar *buf)
 void VG_(show_open_fds) (const HChar* when)
 {
    OpenFd *i;
-   int non_std = 0;
+   int std = 0;
 
-   for (i = allocated_fds; i; i = i->next) {
-      if (i->fd > 2 && i->fd_closed != True)
-         non_std++;
+   for (int index = 0; index < 3; index++) {
+      if (std_fds[index])
+         std++;
    }
 
    /* If we are running quiet and there are either no open file descriptors
       or not tracking all fds, then don't report anything.  */
    if ((fd_count == 0
-        || ((non_std == 0) && (VG_(clo_track_fds) < 2)))
+        || ((fd_count - std == 0) && (VG_(clo_track_fds) < 2)))
        && (VG_(clo_verbosity) == 0))
       return;
 
    if (!VG_(clo_xml)) {
       VG_(umsg)("FILE DESCRIPTORS: %d open (%d std) %s.\n",
-                fd_count, fd_count - non_std, when);
+                fd_count, std, when);
    }
 
    for (i = allocated_fds; i; i = i->next) {
       if (i->fd_closed)
          continue;
 
-      if (i->fd <= 2 && VG_(clo_track_fds) < 2)
+      if (i->fd <= 2 && std_fds[i->fd] && VG_(clo_track_fds) < 2)
           continue;
 
       struct NotClosedExtra nce;
