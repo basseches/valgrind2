@@ -466,6 +466,11 @@ void VG_(logging_atfork_child)(ThreadId tid)
          VG_(xml_output_sink).type = VgLogTo_Fd;
       }
    } else {
+      /* This || logic seems redundant or incorrect...
+         another thing to consider is what to print if the sink has not been
+	 reopened. Outputting forked processes to the same XML file leads to
+	 unmatched <valgrindoutput> tags as the preamble is not emitted for the
+	 child. */
       if (reopen_sink_if_needed(VG_(clo_log_fname_unexpanded),
                                 &VG_(log_output_sink), False) ||
           reopen_sink_if_needed(VG_(clo_xml_fname_unexpanded),
