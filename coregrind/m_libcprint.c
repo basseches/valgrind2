@@ -428,7 +428,7 @@ static void finalize_sink_fd(OutputSink *sink, Int new_fd, Bool is_xml)
    }
 }
 
-/* Re-opens an output file sink when exanded file name differs from what we
+/* Re-opens an output file sink when expanded file name differs from what we
    have now. Returns 'True' if the sink was reopened  */
 static Bool reopen_sink_if_needed(const HChar *clo_fname_unexpanded,
                                   OutputSink *sink, Bool is_xml)
@@ -471,6 +471,17 @@ void VG_(logging_atfork_child)(ThreadId tid)
           reopen_sink_if_needed(VG_(clo_xml_fname_unexpanded),
                                 &VG_(xml_output_sink), True)) {
          VG_(print_preamble)(VG_(log_output_sink).type != VgLogTo_File);
+	 if (VG_(clo_xml)) {
+            HChar buf[50];    // large enough
+	    /* Is this time accurate? Do we care? */
+            VG_(elapsed_wallclock_time)(buf, sizeof buf);
+            VG_(printf_xml)( "<status>\n"
+                           "  <state>RUNNING</state>\n"
+                           "  <time>%pS</time>\n"
+                           "</status>\n",
+                           buf );
+            VG_(printf_xml)( "\n" );
+         }
       }
    }
 }
